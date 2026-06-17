@@ -78,7 +78,7 @@
   /* ── MAIN ── */
   .main { padding: 16px; max-width: 640px; margin: 0 auto; }
 
-  /* ── SEARCH SECTION ── */
+  /* ── PLAYER SELECT SECTION ── */
   .search-section { margin-bottom: 20px; }
   .section-label {
     font-family: var(--font-mono);
@@ -89,8 +89,8 @@
     margin-bottom: 6px;
   }
 
-  .search-wrap { position: relative; }
-  .search-input {
+  .player-select-wrap { position: relative; }
+  .player-select {
     width: 100%;
     background: var(--surface);
     border: 1.5px solid var(--border);
@@ -98,62 +98,26 @@
     color: var(--text);
     font-family: var(--font-body);
     font-size: 1.05rem;
-    padding: 12px 44px 12px 14px;
+    padding: 12px 14px;
     outline: none;
     transition: border-color 0.2s;
     -webkit-appearance: none;
+    appearance: none;
+    cursor: pointer;
   }
-  .search-input:focus { border-color: var(--accent); }
-  .search-input::placeholder { color: var(--muted); }
-  .search-clear {
+  .player-select:focus { border-color: var(--accent); }
+  .player-select option { background: var(--surface2); color: var(--text); }
+  .player-select option:first-child { color: var(--muted); }
+  /* Custom chevron */
+  .player-select-wrap::after {
+    content: '▾';
     position: absolute;
-    right: 12px;
+    right: 14px;
     top: 50%;
     transform: translateY(-50%);
-    background: none;
-    border: none;
     color: var(--muted);
-    font-size: 1.2rem;
-    cursor: pointer;
-    display: none;
-    padding: 4px;
-    line-height: 1;
-  }
-  .search-clear.visible { display: block; }
-
-  /* Autocomplete dropdown */
-  .autocomplete {
-    position: absolute;
-    top: calc(100% + 4px);
-    left: 0; right: 0;
-    background: var(--surface2);
-    border: 1.5px solid var(--border);
-    border-radius: var(--radius);
-    overflow: hidden;
-    z-index: 50;
-    display: none;
-    box-shadow: 0 8px 32px rgba(0,0,0,0.5);
-  }
-  .autocomplete.open { display: block; }
-  .autocomplete-item {
-    padding: 11px 14px;
-    cursor: pointer;
-    font-size: 0.95rem;
-    border-bottom: 1px solid var(--border);
-    transition: background 0.15s;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-  }
-  .autocomplete-item:last-child { border-bottom: none; }
-  .autocomplete-item:hover, .autocomplete-item.active {
-    background: var(--surface);
-    color: var(--accent);
-  }
-  .autocomplete-leagues {
-    font-family: var(--font-mono);
-    font-size: 0.65rem;
-    color: var(--muted);
+    pointer-events: none;
+    font-size: 1rem;
   }
 
   /* ── FILTERS ── */
@@ -517,17 +481,13 @@
 
   <div id="app-content" style="display:none;">
 
-    <!-- SEARCH -->
+    <!-- PLAYER DROPDOWN -->
     <div class="search-section">
-      <div class="section-label">Search Player</div>
-      <div class="search-wrap">
-        <input type="text" class="search-input" id="searchInput"
-               placeholder="Type a name…"
-               autocomplete="off" autocorrect="off" spellcheck="false"
-               oninput="onSearchInput()"
-               onkeydown="onSearchKeyDown(event)">
-        <button class="search-clear" id="searchClear" onclick="clearSearch()">✕</button>
-        <div class="autocomplete" id="autocomplete"></div>
+      <div class="section-label">Select Player</div>
+      <div class="player-select-wrap">
+        <select class="player-select" id="playerSelect" onchange="onPlayerSelect()">
+          <option value="">— Choose a player —</option>
+        </select>
       </div>
     </div>
 
@@ -573,7 +533,6 @@ let leagues    = [];   // [{name, file}]
 let myLast     = '';
 let myFirst    = '';
 let currentPlayer = null;   // {last, first}
-let acIndex    = -1;        // autocomplete keyboard selection
 
 // ─────────────────────────────────────────────
 // SETTINGS — stored in localStorage
@@ -630,6 +589,7 @@ async function loadAllData() {
     });
 
     buildPlayerIndex();
+    populatePlayerDropdown();
     populateLeagueFilter();
 
     document.getElementById('loading-state').style.display = 'none';
@@ -679,93 +639,32 @@ function showNoDataNotice() {
 }
 
 // ─────────────────────────────────────────────
-// SEARCH / AUTOCOMPLETE
+// PLAYER DROPDOWN
 // ─────────────────────────────────────────────
-function onSearchInput() {
-  const q = document.getElementById('searchInput').value.trim().toLowerCase();
-  document.getElementById('searchClear').classList.toggle('visible', q.length > 0);
+function populatePlayerDropdown() {
+  const sel = document.getElementById('playerSelect');
+  // Keep the placeholder option, add one per player sorted Last, First
+  allPlayers.forEach(p => {
+    const opt = document.createElement('option');
+    opt.value = p.last + '|' + p.first;
+    opt.textContent = p.last + ', ' + p.first;
+    sel.appendChild(opt);
+  });
+}
 
-  if (q.length < 1) {
-    closeAutocomplete();
+function onPlayerSelect() {
+  const val = document.getElementById('playerSelect').value;
+  if (!val) {
     currentPlayer = null;
     document.getElementById('results-area').innerHTML = '';
     document.getElementById('filters').style.display = 'none';
     return;
   }
-
-  const matches = allPlayers.filter(p =>
-    p.first.toLowerCase().includes(q) ||
-    p.last.toLowerCase().includes(q) ||
-    (p.first + ' ' + p.last).toLowerCase().includes(q)
-  ).slice(0, 8);
-
-  renderAutocomplete(matches);
-}
-
-function renderAutocomplete(matches) {
-  const el = document.getElementById('autocomplete');
-  if (matches.length === 0) { closeAutocomplete(); return; }
-
-  el.innerHTML = matches.map((p, i) =>
-    `<div class="autocomplete-item" data-idx="${i}"
-          onclick="selectPlayer('${esc(p.last)}','${esc(p.first)}')"
-          onmouseenter="acIndex=${i};highlightAC()">
-       <span>${p.first} ${p.last}</span>
-       <span class="autocomplete-leagues">${p.leagues.join(' · ')}</span>
-     </div>`
-  ).join('');
-
-  el.dataset.matches = JSON.stringify(matches);
-  el.classList.add('open');
-  acIndex = -1;
-}
-
-function closeAutocomplete() {
-  document.getElementById('autocomplete').classList.remove('open');
-  acIndex = -1;
-}
-
-function onSearchKeyDown(e) {
-  const el = document.getElementById('autocomplete');
-  if (!el.classList.contains('open')) return;
-  const items = el.querySelectorAll('.autocomplete-item');
-  if (e.key === 'ArrowDown') { e.preventDefault(); acIndex = Math.min(acIndex + 1, items.length - 1); highlightAC(); }
-  if (e.key === 'ArrowUp')   { e.preventDefault(); acIndex = Math.max(acIndex - 1, 0); highlightAC(); }
-  if (e.key === 'Enter' && acIndex >= 0) {
-    const matches = JSON.parse(el.dataset.matches || '[]');
-    if (matches[acIndex]) selectPlayer(matches[acIndex].last, matches[acIndex].first);
-  }
-  if (e.key === 'Escape') closeAutocomplete();
-}
-
-function highlightAC() {
-  document.querySelectorAll('.autocomplete-item').forEach((el, i) => {
-    el.classList.toggle('active', i === acIndex);
-  });
-}
-
-function selectPlayer(last, first) {
-  document.getElementById('searchInput').value = first + ' ' + last;
-  document.getElementById('searchClear').classList.add('visible');
-  closeAutocomplete();
+  const [last, first] = val.split('|');
   currentPlayer = { last, first };
   document.getElementById('filters').style.display = 'flex';
   renderResults();
 }
-
-function clearSearch() {
-  document.getElementById('searchInput').value = '';
-  document.getElementById('searchClear').classList.remove('visible');
-  closeAutocomplete();
-  currentPlayer = null;
-  document.getElementById('results-area').innerHTML = '';
-  document.getElementById('filters').style.display = 'none';
-}
-
-// Close autocomplete when clicking outside
-document.addEventListener('click', e => {
-  if (!e.target.closest('.search-wrap')) closeAutocomplete();
-});
 
 // ─────────────────────────────────────────────
 // RESULTS RENDERING
