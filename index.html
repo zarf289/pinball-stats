@@ -1,0 +1,977 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="theme-color" content="#0a0a0f">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Pinball Stats">
+<title>Pinball League Stats</title>
+
+<style>
+  /* ── IMPORTS ── */
+  @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600&display=swap');
+
+  /* ── TOKENS ── */
+  :root {
+    --bg:         #0a0a0f;
+    --surface:    #13131c;
+    --surface2:   #1c1c2a;
+    --border:     #2a2a3d;
+    --accent:     #f5c842;
+    --accent2:    #e0512a;
+    --text:       #e8e8f0;
+    --muted:      #6b6b88;
+    --high:       #4ade80;
+    --low:        #f87171;
+    --avg:        #60a5fa;
+    --font-head:  'Bebas Neue', sans-serif;
+    --font-mono:  'DM Mono', monospace;
+    --font-body:  'DM Sans', sans-serif;
+    --radius:     10px;
+  }
+
+  /* ── RESET ── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { font-size: 16px; -webkit-text-size-adjust: 100%; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-body);
+    min-height: 100dvh;
+    overflow-x: hidden;
+  }
+
+  /* ── HEADER ── */
+  .header {
+    background: var(--surface);
+    border-bottom: 2px solid var(--accent);
+    padding: 14px 16px 12px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .header-title {
+    font-family: var(--font-head);
+    font-size: 1.9rem;
+    letter-spacing: 0.04em;
+    color: var(--accent);
+    line-height: 1;
+  }
+  .header-title span { color: var(--accent2); }
+  .settings-btn {
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    border-radius: 8px;
+    padding: 6px 10px;
+    font-size: 1.2rem;
+    cursor: pointer;
+    transition: border-color 0.2s, color 0.2s;
+  }
+  .settings-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* ── MAIN ── */
+  .main { padding: 16px; max-width: 640px; margin: 0 auto; }
+
+  /* ── SEARCH SECTION ── */
+  .search-section { margin-bottom: 20px; }
+  .section-label {
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--muted);
+    margin-bottom: 6px;
+  }
+
+  .search-wrap { position: relative; }
+  .search-input {
+    width: 100%;
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text);
+    font-family: var(--font-body);
+    font-size: 1.05rem;
+    padding: 12px 44px 12px 14px;
+    outline: none;
+    transition: border-color 0.2s;
+    -webkit-appearance: none;
+  }
+  .search-input:focus { border-color: var(--accent); }
+  .search-input::placeholder { color: var(--muted); }
+  .search-clear {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    color: var(--muted);
+    font-size: 1.2rem;
+    cursor: pointer;
+    display: none;
+    padding: 4px;
+    line-height: 1;
+  }
+  .search-clear.visible { display: block; }
+
+  /* Autocomplete dropdown */
+  .autocomplete {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0; right: 0;
+    background: var(--surface2);
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    z-index: 50;
+    display: none;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+  }
+  .autocomplete.open { display: block; }
+  .autocomplete-item {
+    padding: 11px 14px;
+    cursor: pointer;
+    font-size: 0.95rem;
+    border-bottom: 1px solid var(--border);
+    transition: background 0.15s;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .autocomplete-item:last-child { border-bottom: none; }
+  .autocomplete-item:hover, .autocomplete-item.active {
+    background: var(--surface);
+    color: var(--accent);
+  }
+  .autocomplete-leagues {
+    font-family: var(--font-mono);
+    font-size: 0.65rem;
+    color: var(--muted);
+  }
+
+  /* ── FILTERS ── */
+  .filters {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+  }
+  .filter-group { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+  .filter-label {
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    white-space: nowrap;
+  }
+  select.filter-select {
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    font-family: var(--font-body);
+    font-size: 0.85rem;
+    padding: 6px 10px;
+    outline: none;
+    cursor: pointer;
+    -webkit-appearance: none;
+    appearance: none;
+    min-width: 130px;
+  }
+  select.filter-select:focus { border-color: var(--accent); }
+
+  /* ── RESULTS HEADER ── */
+  .results-header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin-bottom: 14px;
+  }
+  .results-name {
+    font-family: var(--font-head);
+    font-size: 2rem;
+    letter-spacing: 0.03em;
+    color: var(--text);
+  }
+  .results-meta {
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    color: var(--muted);
+  }
+
+  /* ── MACHINE CARD ── */
+  .machine-card {
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius);
+    margin-bottom: 12px;
+    overflow: hidden;
+    transition: border-color 0.2s;
+  }
+  .machine-card:hover { border-color: var(--surface2); }
+
+  .machine-header {
+    padding: 12px 14px;
+    cursor: pointer;
+    user-select: none;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .machine-name {
+    font-family: var(--font-head);
+    font-size: 1.25rem;
+    letter-spacing: 0.03em;
+    flex: 1;
+    color: var(--accent);
+  }
+  .machine-plays {
+    font-family: var(--font-mono);
+    font-size: 0.65rem;
+    color: var(--muted);
+    white-space: nowrap;
+  }
+  .chevron {
+    color: var(--muted);
+    font-size: 0.8rem;
+    transition: transform 0.2s;
+    flex-shrink: 0;
+  }
+  .machine-card.open .chevron { transform: rotate(90deg); }
+
+  /* Stats row */
+  .stats-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+  }
+  .stat-cell {
+    padding: 10px 8px;
+    text-align: center;
+    border-right: 1px solid var(--border);
+  }
+  .stat-cell:last-child { border-right: none; }
+  .stat-label {
+    font-family: var(--font-mono);
+    font-size: 0.6rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--muted);
+    margin-bottom: 4px;
+  }
+  .stat-value {
+    font-family: var(--font-mono);
+    font-size: 0.82rem;
+    font-weight: 500;
+  }
+  .stat-value.high { color: var(--high); }
+  .stat-value.low  { color: var(--low); }
+  .stat-value.avg  { color: var(--avg); }
+
+  /* Comparison row (your scores vs theirs) */
+  .compare-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    padding: 8px 0;
+    background: var(--surface2);
+  }
+  .compare-cell {
+    padding: 4px 8px;
+    text-align: center;
+  }
+  .compare-label {
+    font-family: var(--font-mono);
+    font-size: 0.58rem;
+    color: var(--muted);
+    margin-bottom: 2px;
+  }
+  .compare-name {
+    font-family: var(--font-mono);
+    font-size: 0.62rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 2px;
+  }
+  .compare-name.you { color: var(--accent); }
+  .compare-name.them { color: var(--text); }
+  .compare-score {
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    font-weight: 500;
+  }
+  .compare-score.better { color: var(--high); }
+  .compare-score.worse  { color: var(--low); }
+  .compare-score.neutral { color: var(--muted); }
+  .compare-divider {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
+    color: var(--muted);
+  }
+
+  /* Raw scores toggle */
+  .raw-toggle {
+    padding: 8px 14px;
+    display: none;
+  }
+  .machine-card.open .raw-toggle { display: block; }
+
+  .raw-btn {
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    border-radius: 6px;
+    padding: 5px 10px;
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    cursor: pointer;
+    transition: border-color 0.2s, color 0.2s;
+    margin-bottom: 8px;
+  }
+  .raw-btn:hover, .raw-btn.active { border-color: var(--accent); color: var(--accent); }
+
+  /* Raw scores table */
+  .raw-table { display: none; width: 100%; }
+  .raw-table.visible { display: table; }
+  .raw-table { border-collapse: collapse; }
+  .raw-table th, .raw-table td {
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    padding: 5px 8px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+  }
+  .raw-table th {
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-size: 0.62rem;
+  }
+  .raw-table td.score-you { color: var(--accent); }
+  .raw-table td.score-them { color: var(--text); }
+  .raw-table td.week-num { color: var(--muted); }
+  .raw-table tr:last-child td { border-bottom: none; }
+
+  /* ── EMPTY STATES ── */
+  .empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--muted);
+  }
+  .empty-icon { font-size: 3rem; margin-bottom: 12px; }
+  .empty-title { font-family: var(--font-head); font-size: 1.5rem; color: var(--text); margin-bottom: 6px; }
+  .empty-sub { font-size: 0.9rem; line-height: 1.5; }
+
+  /* ── MODAL (Settings) ── */
+  .modal-overlay {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.75);
+    z-index: 200;
+    display: none;
+    align-items: flex-end;
+    justify-content: center;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    border-radius: 16px 16px 0 0;
+    padding: 24px 20px 40px;
+    width: 100%;
+    max-width: 640px;
+    animation: slideUp 0.25s ease;
+  }
+  @keyframes slideUp {
+    from { transform: translateY(100%); opacity: 0; }
+    to   { transform: translateY(0);    opacity: 1; }
+  }
+  .modal-title {
+    font-family: var(--font-head);
+    font-size: 1.5rem;
+    color: var(--accent);
+    margin-bottom: 20px;
+    letter-spacing: 0.04em;
+  }
+  .modal-field { margin-bottom: 16px; }
+  .modal-field label {
+    display: block;
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--muted);
+    margin-bottom: 6px;
+  }
+  .modal-field input {
+    width: 100%;
+    background: var(--surface2);
+    border: 1.5px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    font-family: var(--font-body);
+    font-size: 1rem;
+    padding: 10px 12px;
+    outline: none;
+    -webkit-appearance: none;
+  }
+  .modal-field input:focus { border-color: var(--accent); }
+  .modal-hint {
+    font-size: 0.78rem;
+    color: var(--muted);
+    margin-top: 4px;
+    line-height: 1.4;
+  }
+  .modal-save {
+    width: 100%;
+    background: var(--accent);
+    color: #0a0a0f;
+    border: none;
+    border-radius: 10px;
+    font-family: var(--font-head);
+    font-size: 1.2rem;
+    letter-spacing: 0.06em;
+    padding: 13px;
+    cursor: pointer;
+    margin-top: 4px;
+    transition: opacity 0.2s;
+  }
+  .modal-save:hover { opacity: 0.88; }
+
+  /* ── LOADING ── */
+  .loading {
+    text-align: center;
+    padding: 60px 20px;
+    font-family: var(--font-mono);
+    color: var(--muted);
+    font-size: 0.85rem;
+    letter-spacing: 0.08em;
+  }
+  .loading::after {
+    content: '';
+    display: inline-block;
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--accent);
+    margin-left: 8px;
+    animation: pulse 1s infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.2; }
+  }
+
+  /* ── NOTICE BANNER ── */
+  .notice {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent);
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-size: 0.82rem;
+    color: var(--muted);
+    margin-bottom: 16px;
+    line-height: 1.5;
+  }
+  .notice strong { color: var(--text); }
+
+  /* No data found for player */
+  .no-results {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--muted);
+    font-family: var(--font-mono);
+    font-size: 0.85rem;
+  }
+
+  /* ── SCROLLBAR ── */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header class="header">
+  <div class="header-title">PINBALL<span>STATS</span></div>
+  <button class="settings-btn" onclick="openSettings()" title="Settings">⚙</button>
+</header>
+
+<!-- MAIN -->
+<main class="main">
+
+  <div id="loading-state" class="loading">LOADING LEAGUE DATA</div>
+
+  <div id="app-content" style="display:none;">
+
+    <!-- SEARCH -->
+    <div class="search-section">
+      <div class="section-label">Search Player</div>
+      <div class="search-wrap">
+        <input type="text" class="search-input" id="searchInput"
+               placeholder="Type a name…"
+               autocomplete="off" autocorrect="off" spellcheck="false"
+               oninput="onSearchInput()"
+               onkeydown="onSearchKeyDown(event)">
+        <button class="search-clear" id="searchClear" onclick="clearSearch()">✕</button>
+        <div class="autocomplete" id="autocomplete"></div>
+      </div>
+    </div>
+
+    <!-- FILTERS -->
+    <div class="filters" id="filters" style="display:none;">
+      <div class="filter-group">
+        <span class="filter-label">League</span>
+        <select class="filter-select" id="leagueFilter" onchange="renderResults()">
+          <option value="all">All Leagues</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- RESULTS -->
+    <div id="results-area"></div>
+
+  </div>
+</main>
+
+<!-- SETTINGS MODAL -->
+<div class="modal-overlay" id="settingsModal" onclick="closeSettingsOnOverlay(event)">
+  <div class="modal">
+    <div class="modal-title">⚙ Settings</div>
+    <div class="modal-field">
+      <label>Your Name (Last, First)</label>
+      <input type="text" id="myNameInput" placeholder="e.g. Damel, Scott">
+      <div class="modal-hint">
+        Enter your name exactly as it appears in the league data.<br>
+        Your scores will always show alongside any player you look up.
+      </div>
+    </div>
+    <button class="modal-save" onclick="saveSettings()">Save</button>
+  </div>
+</div>
+
+<script>
+// ─────────────────────────────────────────────
+// STATE
+// ─────────────────────────────────────────────
+let allData    = [];   // flat array of all records across all leagues
+let allPlayers = [];   // unique {last, first, leagues:[]} entries
+let leagues    = [];   // [{name, file}]
+let myLast     = '';
+let myFirst    = '';
+let currentPlayer = null;   // {last, first}
+let acIndex    = -1;        // autocomplete keyboard selection
+
+// ─────────────────────────────────────────────
+// SETTINGS — stored in localStorage
+// ─────────────────────────────────────────────
+function loadSettings() {
+  const raw = localStorage.getItem('pinball_myname') || '';
+  if (raw.includes(',')) {
+    const parts = raw.split(',');
+    myLast  = (parts[0] || '').trim();
+    myFirst = (parts[1] || '').trim();
+  }
+}
+function saveSettings() {
+  const val = document.getElementById('myNameInput').value.trim();
+  localStorage.setItem('pinball_myname', val);
+  loadSettings();
+  closeSettings();
+  if (currentPlayer) renderResults();
+}
+function openSettings() {
+  const stored = localStorage.getItem('pinball_myname') || '';
+  document.getElementById('myNameInput').value = stored;
+  document.getElementById('settingsModal').classList.add('open');
+}
+function closeSettings() {
+  document.getElementById('settingsModal').classList.remove('open');
+}
+function closeSettingsOnOverlay(e) {
+  if (e.target === e.currentTarget) closeSettings();
+}
+
+// ─────────────────────────────────────────────
+// DATA LOADING
+// Data files are listed in manifest.json.
+// Format: { "files": ["data/spring2026.json", "data/fall2026.json"] }
+// ─────────────────────────────────────────────
+async function loadAllData() {
+  try {
+    const manifest = await fetch('data/manifest.json').then(r => r.json());
+    const files = manifest.files || [];
+
+    if (files.length === 0) {
+      showNoDataNotice();
+      return;
+    }
+
+    const results = await Promise.all(files.map(f => fetch(f).then(r => r.json())));
+
+    results.forEach(league => {
+      leagues.push({ name: league.league });
+      league.records.forEach(rec => {
+        allData.push({ ...rec, league: league.league });
+      });
+    });
+
+    buildPlayerIndex();
+    populateLeagueFilter();
+
+    document.getElementById('loading-state').style.display = 'none';
+    document.getElementById('app-content').style.display   = 'block';
+
+    // First-run: prompt for name if not set
+    if (!myLast) openSettings();
+
+  } catch(e) {
+    document.getElementById('loading-state').innerHTML =
+      '<div class="empty-state"><div class="empty-icon">⚠️</div>' +
+      '<div class="empty-title">No Data Found</div>' +
+      '<div class="empty-sub">Could not load league data.<br>Make sure data/manifest.json exists in your GitHub repo.</div></div>';
+    console.error(e);
+  }
+}
+
+function buildPlayerIndex() {
+  const map = new Map();
+  allData.forEach(r => {
+    const key = r.last + '|' + r.first;
+    if (!map.has(key)) map.set(key, { last: r.last, first: r.first, leagues: new Set() });
+    map.get(key).leagues.add(r.league);
+  });
+  allPlayers = [...map.values()]
+    .map(p => ({ ...p, leagues: [...p.leagues] }))
+    .sort((a, b) => a.last.localeCompare(b.last) || a.first.localeCompare(b.first));
+}
+
+function populateLeagueFilter() {
+  const sel = document.getElementById('leagueFilter');
+  leagues.forEach(l => {
+    const opt = document.createElement('option');
+    opt.value = l.name;
+    opt.textContent = l.name;
+    sel.appendChild(opt);
+  });
+}
+
+function showNoDataNotice() {
+  document.getElementById('loading-state').innerHTML =
+    '<div class="empty-state">' +
+    '<div class="empty-icon">🎰</div>' +
+    '<div class="empty-title">No League Data Yet</div>' +
+    '<div class="empty-sub">Run parse_league.py on your PC, then push the data/ folder to GitHub.</div>' +
+    '</div>';
+}
+
+// ─────────────────────────────────────────────
+// SEARCH / AUTOCOMPLETE
+// ─────────────────────────────────────────────
+function onSearchInput() {
+  const q = document.getElementById('searchInput').value.trim().toLowerCase();
+  document.getElementById('searchClear').classList.toggle('visible', q.length > 0);
+
+  if (q.length < 1) {
+    closeAutocomplete();
+    currentPlayer = null;
+    document.getElementById('results-area').innerHTML = '';
+    document.getElementById('filters').style.display = 'none';
+    return;
+  }
+
+  const matches = allPlayers.filter(p =>
+    p.first.toLowerCase().includes(q) ||
+    p.last.toLowerCase().includes(q) ||
+    (p.first + ' ' + p.last).toLowerCase().includes(q)
+  ).slice(0, 8);
+
+  renderAutocomplete(matches);
+}
+
+function renderAutocomplete(matches) {
+  const el = document.getElementById('autocomplete');
+  if (matches.length === 0) { closeAutocomplete(); return; }
+
+  el.innerHTML = matches.map((p, i) =>
+    `<div class="autocomplete-item" data-idx="${i}"
+          onclick="selectPlayer('${esc(p.last)}','${esc(p.first)}')"
+          onmouseenter="acIndex=${i};highlightAC()">
+       <span>${p.first} ${p.last}</span>
+       <span class="autocomplete-leagues">${p.leagues.join(' · ')}</span>
+     </div>`
+  ).join('');
+
+  el.dataset.matches = JSON.stringify(matches);
+  el.classList.add('open');
+  acIndex = -1;
+}
+
+function closeAutocomplete() {
+  document.getElementById('autocomplete').classList.remove('open');
+  acIndex = -1;
+}
+
+function onSearchKeyDown(e) {
+  const el = document.getElementById('autocomplete');
+  if (!el.classList.contains('open')) return;
+  const items = el.querySelectorAll('.autocomplete-item');
+  if (e.key === 'ArrowDown') { e.preventDefault(); acIndex = Math.min(acIndex + 1, items.length - 1); highlightAC(); }
+  if (e.key === 'ArrowUp')   { e.preventDefault(); acIndex = Math.max(acIndex - 1, 0); highlightAC(); }
+  if (e.key === 'Enter' && acIndex >= 0) {
+    const matches = JSON.parse(el.dataset.matches || '[]');
+    if (matches[acIndex]) selectPlayer(matches[acIndex].last, matches[acIndex].first);
+  }
+  if (e.key === 'Escape') closeAutocomplete();
+}
+
+function highlightAC() {
+  document.querySelectorAll('.autocomplete-item').forEach((el, i) => {
+    el.classList.toggle('active', i === acIndex);
+  });
+}
+
+function selectPlayer(last, first) {
+  document.getElementById('searchInput').value = first + ' ' + last;
+  document.getElementById('searchClear').classList.add('visible');
+  closeAutocomplete();
+  currentPlayer = { last, first };
+  document.getElementById('filters').style.display = 'flex';
+  renderResults();
+}
+
+function clearSearch() {
+  document.getElementById('searchInput').value = '';
+  document.getElementById('searchClear').classList.remove('visible');
+  closeAutocomplete();
+  currentPlayer = null;
+  document.getElementById('results-area').innerHTML = '';
+  document.getElementById('filters').style.display = 'none';
+}
+
+// Close autocomplete when clicking outside
+document.addEventListener('click', e => {
+  if (!e.target.closest('.search-wrap')) closeAutocomplete();
+});
+
+// ─────────────────────────────────────────────
+// RESULTS RENDERING
+// ─────────────────────────────────────────────
+function renderResults() {
+  if (!currentPlayer) return;
+
+  const leagueFilter = document.getElementById('leagueFilter').value;
+  const { last, first } = currentPlayer;
+  const isMe = last === myLast && first === myFirst;
+
+  // Filter records for the searched player
+  let theirRecs = allData.filter(r =>
+    r.last === last && r.first === first &&
+    (leagueFilter === 'all' || r.league === leagueFilter)
+  );
+
+  // Filter my records
+  let myRecs = (myLast && !isMe)
+    ? allData.filter(r =>
+        r.last === myLast && r.first === myFirst &&
+        (leagueFilter === 'all' || r.league === leagueFilter)
+      )
+    : [];
+
+  const area = document.getElementById('results-area');
+
+  if (theirRecs.length === 0) {
+    area.innerHTML = `<div class="no-results">No records found for ${first} ${last}${leagueFilter !== 'all' ? ' in ' + leagueFilter : ''}.</div>`;
+    return;
+  }
+
+  // Group by machine
+  const machineMap = new Map();
+  theirRecs.forEach(r => {
+    if (!machineMap.has(r.machine)) machineMap.set(r.machine, []);
+    machineMap.get(r.machine).push(r);
+  });
+
+  // Group my records by machine
+  const myMachineMap = new Map();
+  myRecs.forEach(r => {
+    if (!myMachineMap.has(r.machine)) myMachineMap.set(r.machine, []);
+    myMachineMap.get(r.machine).push(r);
+  });
+
+  // Sort machines by name
+  const machines = [...machineMap.keys()].sort();
+
+  // Build header
+  let html = `
+    <div class="results-header">
+      <div class="results-name">${first} ${last}${isMe ? ' <span style="color:var(--accent);font-size:1.2rem;">★</span>' : ''}</div>
+      <div class="results-meta">${machines.length} machines · ${theirRecs.length} plays</div>
+    </div>
+  `;
+
+  if (!myLast && !isMe) {
+    html += `<div class="notice"><strong>Tip:</strong> Set your name in ⚙ Settings to see your scores alongside.</div>`;
+  }
+
+  // Build each machine card
+  machines.forEach((machine, cardIdx) => {
+    const plays = machineMap.get(machine);
+    const scores = plays.map(r => r.score);
+    const high = Math.max(...scores);
+    const low  = Math.min(...scores);
+    const avg  = Math.round(scores.reduce((a,b) => a+b, 0) / scores.length);
+
+    // My stats for this machine
+    const myPlays = myMachineMap.get(machine) || [];
+    const myScores = myPlays.map(r => r.score);
+    const myHigh = myScores.length ? Math.max(...myScores) : null;
+    const myAvg  = myScores.length ? Math.round(myScores.reduce((a,b)=>a+b,0)/myScores.length) : null;
+
+    // Comparison: their avg vs my avg
+    let compareHtml = '';
+    if (!isMe && myScores.length > 0) {
+      const theirBetterHigh = high >= myHigh;
+      const theirBetterAvg  = avg  >= myAvg;
+      compareHtml = `
+        <div class="compare-row">
+          <div class="compare-cell">
+            <div class="compare-name them">${first}</div>
+            <div class="compare-score ${theirBetterHigh ? 'better' : 'worse'}">${fmt(high)}</div>
+            <div class="compare-label">best</div>
+          </div>
+          <div class="compare-cell compare-divider">vs</div>
+          <div class="compare-cell">
+            <div class="compare-name you">${myFirst}</div>
+            <div class="compare-score ${!theirBetterHigh ? 'better' : 'worse'}">${fmt(myHigh)}</div>
+            <div class="compare-label">best</div>
+          </div>
+        </div>
+        <div class="compare-row">
+          <div class="compare-cell">
+            <div class="compare-name them">${first}</div>
+            <div class="compare-score ${theirBetterAvg ? 'better' : 'worse'}">${fmt(avg)}</div>
+            <div class="compare-label">avg</div>
+          </div>
+          <div class="compare-cell compare-divider">vs</div>
+          <div class="compare-cell">
+            <div class="compare-name you">${myFirst}</div>
+            <div class="compare-score ${!theirBetterAvg ? 'better' : 'worse'}">${fmt(myAvg)}</div>
+            <div class="compare-label">avg</div>
+          </div>
+        </div>
+      `;
+    }
+
+    // Raw rows — sorted by week, league
+    const sortedPlays = [...plays].sort((a,b) =>
+      a.league.localeCompare(b.league) || a.week - b.week
+    );
+    const myPlaysMap = new Map(myPlays.map(r => [r.league+'|'+r.week, r.score]));
+
+    let rawRows = sortedPlays.map(r => {
+      const myScore = myPlaysMap.get(r.league+'|'+r.week);
+      const myCell  = myScore != null
+        ? `<td class="score-you">${fmt(myScore)}</td>`
+        : `<td style="color:var(--muted)">—</td>`;
+      return `
+        <tr>
+          <td class="week-num">Wk ${r.week}</td>
+          <td style="color:var(--muted);font-size:0.62rem;">${r.league}</td>
+          <td class="score-them">${fmt(r.score)}</td>
+          ${!isMe ? myCell : ''}
+        </tr>`;
+    }).join('');
+
+    const id = 'card' + cardIdx;
+
+    html += `
+      <div class="machine-card" id="${id}">
+        <div class="machine-header" onclick="toggleCard('${id}')">
+          <div class="machine-name">${machine}</div>
+          <div class="machine-plays">${plays.length} play${plays.length>1?'s':''}</div>
+          <div class="chevron">▶</div>
+        </div>
+        <div class="stats-row">
+          <div class="stat-cell">
+            <div class="stat-label">High</div>
+            <div class="stat-value high">${fmt(high)}</div>
+          </div>
+          <div class="stat-cell">
+            <div class="stat-label">Average</div>
+            <div class="stat-value avg">${fmt(avg)}</div>
+          </div>
+          <div class="stat-cell">
+            <div class="stat-label">Low</div>
+            <div class="stat-value low">${fmt(low)}</div>
+          </div>
+        </div>
+        ${compareHtml}
+        <div class="raw-toggle">
+          <button class="raw-btn" id="rawBtn${cardIdx}" onclick="toggleRaw(${cardIdx})">
+            Show Raw Scores
+          </button>
+          <table class="raw-table" id="rawTable${cardIdx}">
+            <thead>
+              <tr>
+                <th>Week</th>
+                <th>League</th>
+                <th>${first}</th>
+                ${!isMe && myScores.length > 0 ? `<th style="color:var(--accent)">${myFirst}</th>` : ''}
+              </tr>
+            </thead>
+            <tbody>${rawRows}</tbody>
+          </table>
+        </div>
+      </div>
+    `;
+  });
+
+  area.innerHTML = html;
+}
+
+function toggleCard(id) {
+  document.getElementById(id).classList.toggle('open');
+}
+
+function toggleRaw(idx) {
+  const table = document.getElementById('rawTable' + idx);
+  const btn   = document.getElementById('rawBtn'   + idx);
+  const show  = !table.classList.contains('visible');
+  table.classList.toggle('visible', show);
+  btn.classList.toggle('active', show);
+  btn.textContent = show ? 'Hide Raw Scores' : 'Show Raw Scores';
+}
+
+// ─────────────────────────────────────────────
+// UTILITIES
+// ─────────────────────────────────────────────
+function fmt(n) {
+  if (n == null) return '—';
+  return n.toLocaleString();
+}
+function esc(s) {
+  return (s || '').replace(/'/g, "\\'");
+}
+
+// ─────────────────────────────────────────────
+// INIT
+// ─────────────────────────────────────────────
+loadSettings();
+loadAllData();
+</script>
+</body>
+</html>
