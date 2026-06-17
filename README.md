@@ -135,3 +135,4 @@ Your phone will see the new data within seconds (just refresh the app).
 - Data is public (anyone with the URL can see it) — fine for league scores
 - No app store required; it installs directly from the browser
 - Scores across multiple leagues accumulate automatically once added to manifest.json
+"# pinball-stats" 
